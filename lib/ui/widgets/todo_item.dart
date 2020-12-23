@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:todos/core/models/todo.dart';
+import 'package:todos/core/providers/todo_provider.dart';
+import 'package:todos/locator.dart';
 import 'package:todos/ui/todo_detail.dart';
 
 class TodoItem extends StatefulWidget {
@@ -24,24 +27,17 @@ Size _textSize(String text, TextStyle style, BuildContext context) {
 }
 
 class _TodoItemState extends State<TodoItem> {
-  bool isDone;
   Size size;
-
-  @override
-  void initState() {
-    super.initState();
-    // isDone = (isDone = widget.index == 2 || widget.index == 4) ? true : false;
-  }
 
   @override
   Widget build(BuildContext context) {
     size = MediaQuery.of(context).size;
     Color doneColor = Theme.of(context).primaryColor;
 
-    String title = "Làm bài tập về nhà";
+    String title = widget.todo.title;
     TextStyle titleTextStyle = TextStyle(
         fontSize: 18,
-        color: isDone ? doneColor : Colors.black87,
+        color: widget.todo.isCompleted ? doneColor : Colors.black87,
         fontWeight: FontWeight.w600);
 
     final Size titleSize = _textSize(title, titleTextStyle, context);
@@ -54,11 +50,11 @@ class _TodoItemState extends State<TodoItem> {
           Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => TodoDetail(),
+                builder: (context) => TodoDetail(widget.todo),
               ));
         },
         child: Opacity(
-          opacity: isDone ? 0.7 : 1,
+          opacity: widget.todo.isCompleted ? 0.7 : 1,
           child: Container(
             padding: EdgeInsets.symmetric(vertical: 25),
             child: Column(
@@ -69,24 +65,26 @@ class _TodoItemState extends State<TodoItem> {
                     Container(
                         alignment: Alignment.topCenter,
                         width: size.width * 0.2,
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              isDone = !isDone;
-                            });
-                          },
-                          child: !isDone
-                              ? Icon(
-                                  Icons.check_box_outline_blank,
-                                  color: Colors.grey[350],
-                                  size: 22,
-                                )
-                              : Icon(
-                                  Icons.check_box_outlined,
-                                  color: Theme.of(context).accentColor,
-                                  size: 22,
-                                ),
-                        )),
+                        child: GestureDetector(
+                            onTap: () async {
+                              await locator.get<TodoProvider>().updateTodo(
+                                  widget.todo.copyWith(
+                                      isComplete: !widget.todo.isCompleted));
+                            },
+                            child: Container(
+                              padding: EdgeInsets.all(5),
+                              child: !widget.todo.isCompleted
+                                  ? Icon(
+                                      Icons.check_box_outline_blank,
+                                      color: Colors.grey[350],
+                                      size: 22,
+                                    )
+                                  : Icon(
+                                      Icons.check_box_outlined,
+                                      color: Theme.of(context).accentColor,
+                                      size: 22,
+                                    ),
+                            ))),
                     Flexible(
                       child: Stack(
                         children: [
@@ -115,7 +113,7 @@ class _TodoItemState extends State<TodoItem> {
                               softWrap: false,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: isDone
+                              style: widget.todo.isCompleted
                                   ? titleTextStyle.copyWith(
                                       decoration: TextDecoration.lineThrough,
                                       decorationThickness: 1.5)
@@ -139,8 +137,7 @@ class _TodoItemState extends State<TodoItem> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.only(right: 18, top: 5),
-                            child: Text(
-                                "Add some descriptions Add some descriptions Add some descriptions Add some descriptionsAdd some descriptions Add some descriptions Add some descriptions Add some descriptions Add some descriptionss",
+                            child: Text(widget.todo.description,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context)
@@ -174,7 +171,7 @@ class _TodoItemState extends State<TodoItem> {
       context: context,
       builder: (BuildContext context) {
         return new AlertDialog(
-          title: Text("Delete: "),
+          title: Text("Delete: " + widget.todo.title),
           content: Text(
             "Are you sure you want to delete this todo?",
             style: TextStyle(fontWeight: FontWeight.w400),
@@ -196,13 +193,12 @@ class _TodoItemState extends State<TodoItem> {
               //minWidth: double.infinity,
               child: RaisedButton(
                 elevation: 3.0,
-                onPressed: () {
-                  // Firestore.instance
-                  //     .collection(widget.user.uid)
-                  //     .document(widget.currentList.keys.elementAt(widget.i))
-                  //     .delete();
-                  // Navigator.pop(context);
+                onPressed: () async {
                   Navigator.of(context).pop();
+                  await locator.get<TodoProvider>().deleteTodo(widget.todo);
+                  EasyLoading.showToast("Deleted!",
+                      duration: new Duration(seconds: 1));
+
                 },
                 child: Text('YES'),
                 color: Colors.red,

@@ -27,14 +27,5 @@ class TodoService {
     });
   }
 
-  // Stream<List<Todo>> completeTodos() {
-  //   return todoCollection
-  //       .where('uid', isEqualTo: AuthService().getUserId())
-  //       .snapshots()
-  //       .map((snapshot) {
-  //     return snapshot.docs.map((doc) => Todo.fromSnapshot(doc)).toList();
-  //   });
-  // }
-
-  // Stream<List<Todo>> incompleteTodos() {}
+  int getNumComplete() {}
 }

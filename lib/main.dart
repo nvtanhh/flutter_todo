@@ -1,13 +1,13 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:todos/core/providers/tab_index_provider.dart';
 import 'package:todos/core/services/auth_service.dart';
 import 'package:todos/locator.dart';
-import 'package:todos/ui/todos_body.dart';
+import 'package:todos/ui/todo_body.dart';
+
 import 'core/providers/todo_provider.dart';
 
 Future<void> main() async {
@@ -35,22 +35,15 @@ class MyTodosApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => locator<TodoProvider>()),
-        StreamProvider<User>(
-            create: (_) => locator<AuthService>().userStream()),
-      ],
-      child: MaterialApp(
-        title: 'Todos',
-        theme: ThemeData(
-            accentColor: Color(0xFF3ACD96),
-            primarySwatch: manabie,
-            visualDensity: VisualDensity.adaptivePlatformDensity,
-            textTheme: GoogleFonts.montserratTextTheme()),
-        home: MyHomePage(),
-        builder: EasyLoading.init(),
-      ),
+    return MaterialApp(
+      title: 'Todos',
+      theme: ThemeData(
+          accentColor: Color(0xFF3ACD96),
+          primarySwatch: manabie,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          textTheme: GoogleFonts.montserratTextTheme()),
+      home: MyHomePage(),
+      builder: EasyLoading.init(),
     );
   }
 }
@@ -61,83 +54,84 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _currentIndex = 1;
-
-  void onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+  @override
+  void initState() {
+    super.initState();
+    login();
   }
 
   @override
+  void dispose() {
+    super.dispose();
+  }
+
+  void login() async {
+    AuthService auth = locator.get<AuthService>();
+
+    var isSignedIn = await auth.isAuthenticated();
+    if (!isSignedIn) {
+      await auth.authenticate();
+    }
+  }
+
+  // List<Widget> bodies = [CompleteTodos(), AllTodos(), IncompleteTodos()];
+
+  // final List<Stream<List<Todo>>> _streams = [
+  //   locator.get<TodoProvider>().completeTodosStream,
+  //   locator.get<TodoProvider>().allTodosStream,
+  //   locator.get<TodoProvider>().incompleteTodosStream
+  // ];
+
+  @override
   Widget build(BuildContext context) {
-    final user = Provider.of<User>(context);
-    return user != null
-        ? Scaffold(
-            bottomNavigationBar: SizedBox(
-              height: 56,
-              child: BottomNavigationBar(
-                unselectedItemColor: Colors.grey[400],
-                onTap: onTabTapped,
-                currentIndex: _currentIndex,
-                fixedColor: Theme.of(context).primaryColor.withOpacity(.8),
-                items: <BottomNavigationBarItem>[
-                  BottomNavigationBarItem(
-                      icon: new Icon(FontAwesomeIcons.solidCalendarCheck),
-                      label: "Complete"),
-                  BottomNavigationBarItem(
-                      icon: new Icon(FontAwesomeIcons.solidListAlt),
-                      label: "All"),
-                  BottomNavigationBarItem(
-                      icon: new Icon(FontAwesomeIcons.solidCalendarTimes),
-                      label: "Incomplte")
-                ],
-              ),
-            ),
-            body: TodosBody(_currentIndex),
-          )
-        : Container(
+    return StreamBuilder(
+      stream: locator<AuthService>().userStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.active &&
+            snapshot.data != null) {
+          return StreamBuilder<int>(
+              stream: locator.get<TabIndexProvider>().stream,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.active &&
+                    snapshot.data != null)
+                  return Scaffold(
+                      bottomNavigationBar: BottomNavigationBar(
+                        unselectedItemColor: Colors.grey[400],
+                        onTap: onTabTapped,
+                        currentIndex: snapshot.data,
+                        fixedColor:
+                            Theme.of(context).primaryColor.withOpacity(.8),
+                        items: <BottomNavigationBarItem>[
+                          BottomNavigationBarItem(
+                              icon:
+                                  new Icon(FontAwesomeIcons.solidCalendarCheck),
+                              label: "Complete"),
+                          BottomNavigationBarItem(
+                              icon: new Icon(FontAwesomeIcons.solidListAlt),
+                              label: "All"),
+                          BottomNavigationBarItem(
+                              icon:
+                                  new Icon(FontAwesomeIcons.solidCalendarTimes),
+                              label: "Incomplete")
+                        ],
+                      ),
+                      body: TodoBody(snapshot.data));
+                else
+                  return Container();
+              });
+        } else
+          return Container(
             child: Center(
               child: CircularProgressIndicator(),
             ),
           );
+      },
+    );
+  }
 
-    // return BlocBuilder<AuthenticationBloc, AuthenticationState>(
-    //   builder: (context, state) {
-    //     if (state is Authenticated) {
-    //       return Scaffold(
-    //         bottomNavigationBar: SizedBox(
-    //           height: 56,
-    //           child: BottomNavigationBar(
-    //             unselectedItemColor: Colors.grey[400],
-    //             onTap: onTabTapped,
-    //             currentIndex: _currentIndex,
-    //             fixedColor: Theme.of(context).primaryColor.withOpacity(.8),
-    //             items: <BottomNavigationBarItem>[
-    //               BottomNavigationBarItem(
-    //                   icon: new Icon(FontAwesomeIcons.solidCalendarCheck),
-    //                   label: "Complete"),
-    //               BottomNavigationBarItem(
-    //                   icon: new Icon(FontAwesomeIcons.solidListAlt),
-    //                   label: "All"),
-    //               BottomNavigationBarItem(
-    //                   icon: new Icon(FontAwesomeIcons.solidCalendarTimes),
-    //                   label: "Incomplte")
-    //             ],
-    //           ),
-    //         ),
-    //         body: TodosBody(),
-    //       );
-    //     }
-    //     if (state is Unauthenticated) {
-    //       return Center(
-    //         child: Text('Could not authenticate with Firestore'),
-    //       );
-    //     }
-    //     return Container(
-    //         color: Theme.of(context).primaryColor,
-    //         child: Center(child: Image.asset('assets/m_splash')));
-    //   },
-    // );
+  void onTabTapped(int value) {
+    locator.get<TabIndexProvider>().setCurrentIndex(value);
+    Future.delayed(new Duration(milliseconds: 30),
+        () => locator.get<TodoProvider>().sinkStream());
   }
 }

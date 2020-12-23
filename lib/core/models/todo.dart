@@ -10,7 +10,7 @@ class Todo {
   final String description;
   final bool isCompleted;
 
-  AuthService _auth = locator<AuthService>();
+  final AuthService _auth = locator<AuthService>();
 
   Todo(this.title,
       {this.isCompleted = false, String description = '', String id})
@@ -20,10 +20,10 @@ class Todo {
   Todo copyWith(
       {bool isComplete, String id, String title, String description}) {
     return Todo(
-      description ?? this.description,
+      title ?? this.title,
       isCompleted: isComplete ?? this.isCompleted,
       id: id ?? this.id,
-      description: title ?? this.title,
+      description: description ?? this.description,
     );
   }
 
@@ -52,7 +52,7 @@ class Todo {
   Map<String, Object> toDocument() {
     return {
       'uid': _auth.getUserId(),
-      'isComplete': isCompleted,
+      'isCompleted': isCompleted,
       'description': description,
       'title': title,
     };
@@ -72,7 +72,7 @@ class Todo {
       snap.data()['title'],
       id: snap.id,
       description: snap.data()['description'],
-      isCompleted: snap.data()['isCompleted'],
+      isCompleted: snap.data()['isCompleted'] ?? false,
     );
   }
 

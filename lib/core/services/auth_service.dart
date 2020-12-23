@@ -20,7 +20,7 @@ class AuthService extends ChangeNotifier {
     return _firebaseAuth.signInAnonymously();
   }
 
-  Future<String> getUserId() async {
+  String getUserId() {
     return (_firebaseAuth.currentUser).uid;
   }
 }

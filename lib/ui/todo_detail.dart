@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:todos/core/models/todo.dart';
+import 'package:todos/core/providers/todo_provider.dart';
+import 'package:todos/locator.dart';
 
 class TodoDetail extends StatefulWidget {
+  final Todo todo;
+
+  TodoDetail(this.todo);
+
   @override
   _TodoDetailState createState() => _TodoDetailState();
 }
@@ -25,7 +32,7 @@ class _TodoDetailState extends State<TodoDetail> {
   titleUI() {
     return TextField(
       enableSuggestions: false,
-      controller: _titleController..text = "Lam bai tap ve nha",
+      controller: _titleController..text = widget.todo.title,
       textCapitalization: TextCapitalization.sentences,
       keyboardType: TextInputType.text,
       cursorColor: Theme.of(context).primaryColor,
@@ -36,13 +43,14 @@ class _TodoDetailState extends State<TodoDetail> {
           color: Theme.of(context).primaryColor,
           fontWeight: FontWeight.w600),
       decoration: InputDecoration.collapsed(
-        hintText: "Nhập tên bài hát",
         hintStyle: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w600,
             color: Colors.black.withOpacity(.2)),
+        hintText: "Enter title",
       ),
       maxLines: 1,
+      onChanged: (value) {},
       onSubmitted: (value) {},
     );
   }
@@ -50,14 +58,14 @@ class _TodoDetailState extends State<TodoDetail> {
   descriptionUI() {
     return TextField(
       enableSuggestions: false,
-      controller: _descriptionController..text = "Lam bai tap ve nha",
+      controller: _descriptionController..text = widget.todo.description,
       textCapitalization: TextCapitalization.sentences,
       keyboardType: TextInputType.text,
       cursorColor: Theme.of(context).primaryColor,
       // cursorHeight: 30,
       style: TextStyle(fontSize: 16, height: 1.2, color: Colors.black87),
       decoration: InputDecoration.collapsed(
-        hintText: "Nhập tên bài hát",
+        hintText: "Enter description",
         hintStyle: TextStyle(
             fontSize: 16, height: 1.2, color: Colors.black.withOpacity(.2)),
       ),
@@ -66,69 +74,30 @@ class _TodoDetailState extends State<TodoDetail> {
     );
   }
 
-  void _showDeleteDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return new AlertDialog(
-          title: Text("Delete: "),
-          content: Text(
-            "Are you sure you want to delete this todo?",
-            style: TextStyle(fontWeight: FontWeight.w400),
-          ),
-          actions: <Widget>[
-            ButtonTheme(
-              //minWidth: double.infinity,
-              child: RaisedButton(
-                elevation: 3.0,
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text('No'),
-                color: Colors.grey[400],
-                textColor: const Color(0xffffffff),
-              ),
-            ),
-            ButtonTheme(
-              //minWidth: double.infinity,
-              child: RaisedButton(
-                elevation: 3.0,
-                onPressed: () {
-                  // Firestore.instance
-                  //     .collection(widget.user.uid)
-                  //     .document(widget.currentList.keys.elementAt(widget.i))
-                  //     .delete();
-                  // Navigator.pop(context);
-                  Navigator.of(context).pop();
-                },
-                child: Text('YES'),
-                color: Colors.red,
-                textColor: const Color(0xffffffff),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget sliverAppBar(BuildContext context) {
     return AppBar(
       backgroundColor: Colors.white,
+      leading: GestureDetector(
+        onTap: _checkSave,
+        child: Icon(
+          Icons.arrow_back,
+          color: Theme.of(context).primaryColor,
+        ),
+      ),
       iconTheme: IconThemeData(color: Theme.of(context).primaryColor),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 18),
-          child: InkWell(
-            onTap: () {
+          child: GestureDetector(
+            onTap: () async {
+              Navigator.pop(context);
+              await saveTodo();
               EasyLoading.showSuccess('Saved!');
               Future.delayed(new Duration(seconds: 1), () {
-                Navigator.pop(context);
               });
             },
             child: Icon(
               Icons.save_rounded,
-              size: 24,
               color: Theme.of(context).primaryColor,
             ),
           ),
@@ -170,5 +139,66 @@ class _TodoDetailState extends State<TodoDetail> {
         iconSize: 30.0,
       ),
     );
+  }
+
+  void _checkSave() {
+    var isChange = _titleController.text != widget.todo.title ||
+        _descriptionController.text != widget.todo.description;
+    if (isChange) {
+      _showSaveConfirmDialog();
+    } else
+      Navigator.pop(context);
+  }
+
+  void _showSaveConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return new AlertDialog(
+          title: Text("Save confirm?"),
+          content: Text(
+            "Do you want to save this change?",
+            style: TextStyle(fontWeight: FontWeight.w400),
+          ),
+          actions: <Widget>[
+            ButtonTheme(
+              //minWidth: double.infinity,
+              child: RaisedButton(
+                elevation: 3.0,
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: Text('No'),
+                color: Colors.grey[400],
+                textColor: const Color(0xffffffff),
+              ),
+            ),
+            ButtonTheme(
+              //minWidth: double.infinity,
+              child: RaisedButton(
+                elevation: 3.0,
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop();
+                  await saveTodo();
+                  EasyLoading.showToast("Saved!",
+                      duration: new Duration(seconds: 1));
+                },
+                child: Text('SAVE'),
+                color: Theme.of(context).primaryColor,
+                textColor: const Color(0xffffffff),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> saveTodo() async {
+    await locator.get<TodoProvider>().updateTodo(widget.todo.copyWith(
+        title: _titleController.text,
+        description: _descriptionController.text));
   }
 }

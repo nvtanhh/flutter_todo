@@ -1,57 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-import 'package:provider/provider.dart';
 import 'package:todos/core/models/todo.dart';
 import 'package:todos/core/providers/todo_provider.dart';
+import 'package:todos/locator.dart';
 import 'package:todos/ui/widgets/todo_item.dart';
 
-class TodosBody extends StatefulWidget {
-  final int currentIndex;
+class TodoBody extends StatefulWidget {
+  final int index;
 
-  TodosBody(int this.currentIndex);
+  TodoBody(this.index);
 
   @override
-  _TodosBodyState createState() => _TodosBodyState();
+  _TodoBodyState createState() => _TodoBodyState();
 }
 
-enum VisibilityType { all, incomplete, completed }
-
-class _TodosBodyState extends State<TodosBody> {
+class _TodoBodyState extends State<TodoBody> {
   TextEditingController titleController = new TextEditingController();
-  TextEditingController desciptionController = new TextEditingController();
+  TextEditingController descriptionController = new TextEditingController();
   Size size;
-  VisibilityType visibilityType;
-
-  @override
-  void initState() {
-    super.initState();
-    switch (widget.currentIndex) {
-      case 0:
-        visibilityType = VisibilityType.completed;
-        break;
-      case 1:
-        visibilityType = VisibilityType.all;
-        break;
-      case 2:
-        visibilityType = VisibilityType.incomplete;
-        break;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     size = MediaQuery.of(context).size;
-
+    Stream<List<Todo>> _stream =
+        locator.get<TodoProvider>().getStream(widget.index);
     return SafeArea(
       child: Scaffold(
         backgroundColor: Colors.white,
-        body: Column(
-          children: [
-            _appBarUI(),
-            _summaryPart(),
-            _listTotosUI(),
-          ],
-        ),
+        body: StreamBuilder(
+            stream: _stream,
+            builder:
+                (BuildContext context, AsyncSnapshot<List<Todo>> snapshot) {
+              if (snapshot.connectionState == ConnectionState.active &&
+                  snapshot.data != null) {
+                return Column(children: [
+                  _appBarUI(),
+                  _summaryPart(),
+                  _listTotosUI(snapshot.data)
+                ]);
+              } else
+                return Center();
+            }),
+
+        //
         floatingActionButton: _floadtingButton(),
       ),
     );
@@ -67,6 +60,25 @@ class _TodosBodyState extends State<TodosBody> {
   }
 
   Widget _summaryPart() {
+    int total = locator.get<TodoProvider>().total;
+    int numComplete = locator.get<TodoProvider>().complete;
+    var text1;
+    var text2;
+    switch (widget.index) {
+      case 0:
+        text1 = "My Todos";
+        text2 = numComplete.toString() + " complete todos";
+        break;
+      case 1:
+        text1 = "My Todos";
+        text2 = numComplete.toString() + " of " + total.toString() + " todos";
+        break;
+      case 2:
+        text1 = "Incomplete";
+        text2 = (total - numComplete).toString() + " incomplete todos";
+        break;
+      default:
+    }
     return Padding(
       padding: const EdgeInsets.only(top: 30),
       child: Container(
@@ -78,16 +90,18 @@ class _TodosBodyState extends State<TodosBody> {
                 Container(
                   alignment: Alignment.center,
                   width: size.width * 0.2,
-                  child: CircularPercentIndicator(
-                    radius: 22,
-                    lineWidth: 3,
-                    percent: .4,
-                    backgroundColor: Colors.grey[300],
-                    progressColor: Theme.of(context).primaryColor,
-                  ),
+                  child: (widget.index == 1)
+                      ? CircularPercentIndicator(
+                          radius: 22,
+                          lineWidth: 3,
+                          percent: numComplete / total,
+                          backgroundColor: Colors.grey[300],
+                          progressColor: Theme.of(context).primaryColor,
+                        )
+                      : Container(),
                 ),
                 Text(
-                  "My Todos",
+                  text1,
                   softWrap: true,
                   overflow: TextOverflow.fade,
                   style: Theme.of(context).textTheme.headline4.copyWith(
@@ -107,7 +121,7 @@ class _TodosBodyState extends State<TodosBody> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
-                        child: Text("2 of 7 tasks",
+                        child: Text(text2,
                             style: TextStyle(
                                 fontSize: 16.0,
                                 color: Colors.grey[500],
@@ -120,7 +134,7 @@ class _TodosBodyState extends State<TodosBody> {
                           height: 2,
                           thickness: 1,
                         ),
-                      )
+                      ),
                     ],
                   ),
                 ),
@@ -132,39 +146,35 @@ class _TodosBodyState extends State<TodosBody> {
     );
   }
 
-  Widget _listTotosUI() {
-    final userProvider = Provider.of<TodoProvider>(context);
+  Widget _listTotosUI(List<Todo> todos) {
     return Expanded(
-      child: StreamBuilder(
-        stream: userProvider.fetchAllTodoAsStream(),
-        builder: (BuildContext context, AsyncSnapshot<List<Todo>> snapshot) {
-          if (snapshot.hasData && snapshot.data.length > 0) {
-            return ListView.builder(
+        child: todos.length > 0
+            ? ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.only(top: 20),
-                itemCount: snapshot.data.length,
-                itemBuilder: (BuildContext context, int index) =>
-                    TodoItem(snapshot.data[index]));
-          } else {
-            return Center(child: Text("No items"));
-          }
-        },
-      ),
-    );
-
-    // return Expanded(
-    //   child: Padding(
-    //     padding: const EdgeInsets.only(top: 0),
-    //     child: ListView.builder(
-    //       physics: const AlwaysScrollableScrollPhysics(),
-    //       padding: EdgeInsets.only(top: 20),
-    //       itemCount: 10,
-    //       itemBuilder: (BuildContext context, int index) {
-    //         return TodoItem(index);
-    //       },
-    //     ),
-    //   ),
-    // );
+                itemCount: todos.length,
+                itemBuilder: (BuildContext context, int index) {
+                  Todo todo = todos[index];
+                  print(todo);
+                  return TodoItem(todo);
+                })
+            : Center(
+                child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.asset('assets/empty.svg'),
+                  SizedBox(
+                    height: 10,
+                  ),
+                  Text(
+                    'Empty todo!',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyText1
+                        .copyWith(color: Colors.black54),
+                  )
+                ],
+              )));
   }
 
   Widget _floadtingButton() {
@@ -236,7 +246,7 @@ class _TodosBodyState extends State<TodosBody> {
                     hintText: "",
                     contentPadding: EdgeInsets.only(
                         left: 16.0, top: 20.0, right: 16.0, bottom: 5.0)),
-                controller: desciptionController,
+                controller: descriptionController,
                 style: TextStyle(
                   fontSize: 18.0,
                   color: Colors.black,
@@ -254,18 +264,17 @@ class _TodosBodyState extends State<TodosBody> {
                 padding: EdgeInsets.only(left: 16.0, right: 16.0),
                 child: RaisedButton(
                   elevation: 3.0,
-                  onPressed: () {
-                    // if (itemController.text.isNotEmpty &&
-                    //     !widget.currentList.values
-                    //         .contains(itemController.text.toString())) {
-                    //   Firestore.instance
-                    //       .collection(widget.user.uid)
-                    //       .document(widget.currentList.keys.elementAt(widget.i))
-                    //       .updateData({itemController.text.toString(): false});
-
-                    //   itemController.clear();
-                    //   Navigator.of(context).pop();
-                    // }
+                  onPressed: () async {
+                    if (titleController.text.isNotEmpty) {
+                      Navigator.of(context).pop();
+                      Todo newTodo = new Todo(titleController.text,
+                          description: descriptionController.text);
+                      await locator.get<TodoProvider>().addNewTodo(newTodo);
+                      titleController.clear();
+                      descriptionController.clear();
+                    } else {
+                      EasyLoading.showToast("Title can't emplty");
+                    }
                   },
                   child: Text('Add'),
                   color: Theme.of(context).primaryColor,
